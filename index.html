@@ -163,7 +163,7 @@
         <h1>Parasite</h1>
         <p style="color:#aaa;">V3.7: HOST PROTOCOL</p>
         <div style="margin: 20px; color: var(--dna-color);">🧬 DNA BANK: <span id="menu-dna">0</span></div>
-        <button class="btn" onclick="game.startRun()">INFILTRATE</button>
+        <button class="btn" onclick="window.game && window.game.startRun()">INFILTRATE</button>
         <p style="font-size: 0.8rem; color: #555; margin-top: 30px;">
             CONTROLS: LEFT SIDE MOVE | RIGHT SIDE DASH<br>WASD + SPACE
         </p>
@@ -179,7 +179,7 @@
     <div class="screen" id="death-screen">
         <h1 style="color:var(--danger-color)">TERMINATED</h1>
         <p>DNA EXTRACTED: <span id="run-dna" style="color:var(--dna-color)">0</span></p>
-        <button class="btn" onclick="game.toMenu()">RETURN</button>
+        <button class="btn" onclick="window.game && window.game.toMenu()">RETURN</button>
     </div>
 
 <script>
@@ -267,9 +267,11 @@
         }
         update(p) {
             if(!this.active) return;
+            if(!this.x || !this.y) return;
             const dist = Math.hypot(this.x - p.x, this.y - p.y);
-            
-            if(dist < 700) { 
+            if(isNaN(dist)) return;
+
+            if(dist < 700) {
                 const ang = Math.atan2(p.y - this.y, p.x - this.x);
                 if(this.type === 'shooter') {
                     if(dist > 300) { this.x += Math.cos(ang)*this.speed; this.y += Math.sin(ang)*this.speed; }
@@ -282,8 +284,12 @@
                 } else {
                     this.x += Math.cos(ang)*this.speed; this.y += Math.sin(ang)*this.speed;
                 }
+                this.x = Math.max(0, Math.min(CFG.WORLD, this.x));
+                this.y = Math.max(0, Math.min(CFG.WORLD, this.y));
             } else if (this.type !== 'antibody') {
                 this.x += (Math.random()-0.5); this.y += (Math.random()-0.5);
+                this.x = Math.max(0, Math.min(CFG.WORLD, this.x));
+                this.y = Math.max(0, Math.min(CFG.WORLD, this.y));
             }
         }
         draw(ctx) {
@@ -535,7 +541,7 @@
         startRun() {
             this.player = new Player();
             this.hosts = []; this.voidEnemies = []; this.projectiles = []; this.particles = [];
-            
+
             for(let i=0; i<25; i++) {
                 const r = 400 + Math.random()*600;
                 let x, y, safe=false, attempts=0;
@@ -547,8 +553,12 @@
                 }
                 if(safe) this.hosts.push(new Host(x, y, r));
             }
-            
-            for(let i=0; i<40; i++) this.voidEnemies.push(new Enemy(null, null, Math.random()>0.6?'charger':'shooter'));
+
+            for(let i=0; i<40; i++) {
+                let ex = Math.random()*CFG.WORLD, ey = Math.random()*CFG.WORLD;
+                const enemy = new Enemy(ex, ey, Math.random()>0.6?'charger':'shooter');
+                this.voidEnemies.push(enemy);
+            }
 
             let px, py, safe=false, attempts=0;
             while(!safe && attempts < 100) {
