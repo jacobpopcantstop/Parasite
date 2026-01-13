@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>PARASITE V3.7: HOSTS RESTORED</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --bg-color: #010203;
+            --ui-color: #00ff9d;
+            --danger-color: #ff2a2a;
+            --dna-color: #aa00ff;
+        }
+
+        body {
+            margin: 0; overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: 'Share Tech Mono', monospace;
+            color: white;
+            user-select: none; -webkit-user-select: none;
+            touch-action: none;
+            overscroll-behavior: none;
+        }
+
+        #gameCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 15px; box-sizing: border-box;
+        }
+
+        .hud-top {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            width: 100%; pointer-events: none;
+        }
+
+        .stats-column { display: flex; flex-direction: column; gap: 8px; width: 45%; max-width: 200px; }
+
+        .stat-bar {
+            background: rgba(0, 10, 5, 0.8);
+            border: 1px solid rgba(255,255,255,0.1); border-left: 3px solid var(--ui-color);
+            padding: 6px 10px; border-radius: 4px; backdrop-filter: blur(4px);
+        }
+
+        .bar-track { width: 100%; height: 6px; background: #111; margin-top: 4px; position: relative; border-radius: 2px; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.1s linear; }
+        .hp-fill { background: linear-gradient(90deg, #900, #f00); }
+        .skill-fill { background: linear-gradient(90deg, #005, #0cf); }
+        .xp-fill { background: linear-gradient(90deg, #030, #0f9); }
+
+        .stat-label { font-size: 0.7rem; color: #888; display: flex; justify-content: space-between; }
+
+        .dna-display {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            text-align: center; font-size: 1.2rem; 
+            color: var(--dna-color); text-shadow: 0 0 10px rgba(170, 0, 255, 0.5);
+            background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px;
+            border: 1px solid rgba(170, 0, 255, 0.3);
+        }
+
+        .minimap-container {
+            width: 130px; height: 130px;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid rgba(0, 255, 157, 0.3); border-radius: 50%;
+            overflow: hidden;
+        }
+        #minimap { width: 100%; height: 100%; opacity: 0.9; }
+
+        /* Controls Visuals */
+        #joystick-visual {
+            width: 80px; height: 80px;
+            border: 2px solid rgba(255, 255, 255, 0.2); border-radius: 50%;
+            position: absolute; display: none; transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.05);
+        }
+        #joystick-nub {
+            width: 40px; height: 40px; background: var(--ui-color);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); box-shadow: 0 0 15px var(--ui-color);
+        }
+        .dash-btn-visual {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: rgba(0, 200, 255, 0.1); border: 2px solid rgba(0, 200, 255, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            color: #0cf; font-weight: bold; font-size: 0.9rem;
+            position: absolute; bottom: 30px; right: 30px; pointer-events: auto;
+        }
+        .dash-btn-visual.pressed { background: rgba(0, 200, 255, 0.4); transform: scale(0.95); }
+
+        /* Screens */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(1, 2, 3, 0.96);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.4s;
+            padding: 20px; box-sizing: border-box; text-align: center;
+        }
+        .screen.active { opacity: 1; pointer-events: auto; }
+
+        h1 {
+            font-size: 3rem; margin: 0 0 20px 0;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            letter-spacing: 5px; text-transform: uppercase;
+        }
+
+        .btn {
+            background: transparent; color: var(--ui-color);
+            border: 1px solid var(--ui-color); padding: 15px 40px;
+            font-size: 1.1rem; cursor: pointer; margin-top: 20px;
+            font-family: inherit; letter-spacing: 2px; text-transform: uppercase;
+            transition: all 0.2s; border-radius: 30px; width: 80%; max-width: 300px;
+            pointer-events: auto; /* Ensure clickable */
+        }
+        .btn:active { background: var(--ui-color); color: #000; }
+
+        /* Upgrade Cards */
+        .upgrade-container { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
+        .upgrade-card {
+            background: rgba(20, 30, 25, 0.95); border: 1px solid #444;
+            padding: 15px; width: 140px; cursor: pointer; border-radius: 8px;
+            transition: 0.2s; pointer-events: auto;
+        }
+        .upgrade-card:hover { border-color: var(--ui-color); transform: translateY(-5px); }
+        .upgrade-card h3 { font-size: 0.9rem; color: var(--ui-color); margin: 0 0 5px 0; }
+        .upgrade-card p { font-size: 0.7rem; color: #aaa; margin: 0; }
+        .upgrade-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer" id="hud" style="display:none;">
+        <div class="dna-display"><span id="dna-hud">0</span> DNA</div>
+        <div class="hud-top">
+            <div class="stats-column">
+                <div class="stat-bar">
+                    <div class="stat-label"><span>INTEGRITY</span> <span id="hp-val">100</span></div>
+                    <div class="bar-track"><div class="bar-fill hp-fill" id="hp-bar"></div></div>
+                </div>
+                <div class="stat-bar">
+                    <div class="stat-label"><span>ENERGY</span></div>
+                    <div class="bar-track"><div class="bar-fill skill-fill" id="skill-bar"></div></div>
+                </div>
+                <div class="stat-bar">
+                    <div class="stat-label"><span>BIOMASS</span> <span id="lvl-txt">1</span></div>
+                    <div class="bar-track"><div class="bar-fill xp-fill" id="xp-bar"></div></div>
+                </div>
+            </div>
+            <div class="minimap-container"><canvas id="minimap"></canvas></div>
+        </div>
+        <div id="joystick-visual"><div id="joystick-nub"></div></div>
+        <div id="dash-visual" class="dash-btn-visual">DASH</div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div class="screen active" id="menu-screen">
+        <h1>Parasite</h1>
+        <p style="color:#aaa;">V3.7: HOST PROTOCOL</p>
+        <div style="margin: 20px; color: var(--dna-color);">🧬 DNA BANK: <span id="menu-dna">0</span></div>
+        <button class="btn" onclick="game.startRun()">INFILTRATE</button>
+        <p style="font-size: 0.8rem; color: #555; margin-top: 30px;">
+            CONTROLS: LEFT SIDE MOVE | RIGHT SIDE DASH<br>WASD + SPACE
+        </p>
+    </div>
+
+    <!-- UPGRADE SCREEN -->
+    <div class="screen" id="upgrade-screen">
+        <h2 style="color:var(--ui-color)">MUTATION READY</h2>
+        <div class="upgrade-container" id="upgrade-options"></div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div class="screen" id="death-screen">
+        <h1 style="color:var(--danger-color)">TERMINATED</h1>
+        <p>DNA EXTRACTED: <span id="run-dna" style="color:var(--dna-color)">0</span></p>
+        <button class="btn" onclick="game.toMenu()">RETURN</button>
+    </div>
+
+<script>
+(function() {
+    // --- AUDIO ---
+    const AudioEngine = {
+        ctx: null,
+        init() { if(this.ctx) return; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} },
+        playTone(freq, type, dur, vol=0.1) {
+            if(!this.ctx) return;
+            const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
+            osc.connect(gain); gain.connect(this.ctx.destination);
+            osc.start(); osc.stop(this.ctx.currentTime + dur);
+        },
+        sfx: {
+            eat: () => AudioEngine.playTone(600, 'sine', 0.1, 0.05),
+            hit: () => AudioEngine.playTone(150, 'sawtooth', 0.2, 0.1),
+            dash: () => AudioEngine.playTone(300, 'square', 0.3, 0.05),
+            kill: () => AudioEngine.playTone(100, 'square', 0.3, 0.1),
+            shoot: () => AudioEngine.playTone(800, 'triangle', 0.1, 0.03)
+        }
+    };
+
+    // --- SPATIAL HASH ---
+    class SpatialHash {
+        constructor(cellSize) { this.cellSize = cellSize; this.grid = new Map(); }
+        key(x, y) { return `${Math.floor(x/this.cellSize)},${Math.floor(y/this.cellSize)}`; }
+        insert(e) {
+            const k = this.key(e.x, e.y);
+            if (!this.grid.has(k)) this.grid.set(k, []);
+            this.grid.get(k).push(e);
+        }
+        query(x, y, r) {
+            const res = [];
+            const cr = Math.ceil(r / this.cellSize);
+            const cx = Math.floor(x/this.cellSize), cy = Math.floor(y/this.cellSize);
+            for (let i = -cr; i <= cr; i++) {
+                for (let j = -cr; j <= cr; j++) {
+                    const k = `${cx+i},${cy+j}`;
+                    if (this.grid.has(k)) res.push(...this.grid.get(k));
+                }
+            }
+            return res;
+        }
+        clear() { this.grid.clear(); }
+    }
+
+    const CFG = { WORLD: 8000, GRID: 400 };
+    let canvas, ctx, miniCanvas, miniCtx, width, height;
+
+    // --- GAME ENTITIES ---
+
+    class Particle {
+        constructor() { this.active = false; }
+        spawn(x, y, color, count=1) {
+            this.x = x; this.y = y; this.color = color;
+            this.vx = (Math.random()-0.5)*8; this.vy = (Math.random()-0.5)*8;
+            this.life = 1.0; this.active = true;
+        }
+    }
+
+    class Projectile {
+        constructor(x, y, ang, type, dmg=10) {
+            this.x=x; this.y=y; this.vx=Math.cos(ang)*10; this.vy=Math.sin(ang)*10;
+            this.type=type; this.dmg=dmg; this.life=50; this.active=true;
+        }
+        update() { this.x+=this.vx; this.y+=this.vy; this.life--; if(this.life<=0) this.active=false; }
+        draw(ctx) {
+            ctx.fillStyle = this.type==='player'?'#0ff':'#f0f';
+            ctx.beginPath(); ctx.arc(this.x,this.y,4,0,Math.PI*2); ctx.fill();
+        }
+    }
+
+    class Enemy {
+        constructor(x, y, type) {
+            this.x = x; this.y = y; this.type = type;
+            this.hp = 25; this.active = true;
+            this.radius = 14;
+            if (type === 'charger') { this.speed = 4.5; this.color = '#ff4400'; }
+            else if (type === 'shooter') { this.speed = 2.5; this.color = '#00ccff'; this.cooldown = 100; }
+            else { this.type = 'antibody'; this.speed = 3; this.color = '#ff2222'; }
+        }
+        update(p) {
+            if(!this.active) return;
+            const dist = Math.hypot(this.x - p.x, this.y - p.y);
+            
+            if(dist < 700) { 
+                const ang = Math.atan2(p.y - this.y, p.x - this.x);
+                if(this.type === 'shooter') {
+                    if(dist > 300) { this.x += Math.cos(ang)*this.speed; this.y += Math.sin(ang)*this.speed; }
+                    else if(dist < 200) { this.x -= Math.cos(ang)*this.speed; this.y -= Math.sin(ang)*this.speed; }
+                    this.cooldown--;
+                    if(this.cooldown <= 0) {
+                        window.game.projectiles.push(new Projectile(this.x, this.y, ang, 'enemy', 10));
+                        this.cooldown = 80;
+                    }
+                } else {
+                    this.x += Math.cos(ang)*this.speed; this.y += Math.sin(ang)*this.speed;
+                }
+            } else if (this.type !== 'antibody') {
+                this.x += (Math.random()-0.5); this.y += (Math.random()-0.5);
+            }
+        }
+        draw(ctx) {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            const sides = this.type==='charger'?3: (this.type==='shooter'?4:6);
+            for(let i=0; i<sides; i++) {
+                const a = (i/sides)*Math.PI*2 + Date.now()/200;
+                ctx.lineTo(this.x+Math.cos(a)*this.radius, this.y+Math.sin(a)*this.radius);
+            }
+            ctx.fill();
+        }
+    }
+
+    class Organelle {
+        constructor(host) {
+            this.host = host;
+            const ang = Math.random()*Math.PI*2;
+            const dist = Math.random() * host.radius * 0.7;
+            this.x = host.x + Math.cos(ang)*dist;
+            this.y = host.y + Math.sin(ang)*dist;
+            this.radius = 30; this.hp = 80; this.active = true;
+            this.color = Math.random()>0.5 ? '#9f3' : '#f93';
+        }
+        draw(ctx) {
+            if(!this.active) return;
+            ctx.fillStyle = this.color;
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath(); ctx.arc(this.x, this.y, 10, 0, Math.PI*2); ctx.fill();
+        }
+    }
+
+    class Host {
+        constructor(x, y, r) {
+            this.x = x; this.y = y; this.radius = r;
+            this.cells = []; this.organelles = []; this.enemies = [];
+            this.points = Array.from({length:60}, ()=>Math.random()*0.1+0.95);
+            this.gaps = [];
+            for(let i=0; i<Math.floor(Math.random()*3)+1; i++) this.gaps.push({a: Math.random()*Math.PI*2, w: 0.6});
+
+            for(let i=0; i<r/100; i++) this.organelles.push(new Organelle(this));
+            for(let i=0; i<r*r/3000; i++) {
+                const a = Math.random()*Math.PI*2, d=Math.random()*r*0.9;
+                this.cells.push({x: x+Math.cos(a)*d, y: y+Math.sin(a)*d, r:4, val:1, active:true});
+            }
+            for(let i=0; i<r/80; i++) {
+                const a = Math.random()*Math.PI*2, d=Math.random()*r*0.7;
+                this.enemies.push(new Enemy(x+Math.cos(a)*d, y+Math.sin(a)*d, 'antibody'));
+            }
+        }
+        update(p) {
+            const d = Math.hypot(this.x-p.x, this.y-p.y);
+            if(Math.abs(d - this.radius) < p.radius + 15) {
+                const ang = Math.atan2(p.y-this.y, p.x-this.x);
+                let safe = false;
+                const normA = (ang+Math.PI*4)%(Math.PI*2);
+                for(let g of this.gaps) {
+                    let diff = Math.abs(normA - g.a);
+                    if(diff > Math.PI) diff = Math.PI*2 - diff;
+                    if(diff < g.w/2) safe = true;
+                }
+                if(!safe) {
+                    const dir = d < this.radius ? -1 : 1;
+                    p.x = this.x + Math.cos(ang)*(this.radius + (p.radius+2)*dir);
+                    p.y = this.y + Math.sin(ang)*(this.radius + (p.radius+2)*dir);
+                }
+            }
+            this.enemies.forEach(e => e.update(p));
+        }
+        draw(ctx, cam) {
+            if(this.x+this.radius < cam.x || this.x-this.radius > cam.x+width/cam.z || 
+               this.y+this.radius < cam.y || this.y-this.radius > cam.y+height/cam.z) return;
+
+            const time = Date.now()/1000;
+            ctx.beginPath();
+            const steps = this.points.length;
+            const isGap = (a) => {
+                a = (a+Math.PI*4)%(Math.PI*2);
+                for(let g of this.gaps) {
+                    let d = Math.abs(a-g.a); if(d>Math.PI) d=Math.PI*2-d;
+                    if(d < g.w/2) return true;
+                }
+                return false;
+            };
+
+            for(let i=0; i<=steps; i++) {
+                const th = (i/steps)*Math.PI*2;
+                if(isGap(th)) { ctx.stroke(); ctx.beginPath(); continue; }
+                const r = this.radius * this.points[i%steps] + Math.sin(time+th*5)*5;
+                ctx.lineTo(this.x+Math.cos(th)*r, this.y+Math.sin(th)*r);
+            }
+            ctx.strokeStyle = 'rgba(200, 50, 50, 0.5)'; ctx.fillStyle = 'rgba(50, 10, 10, 0.2)';
+            ctx.lineWidth = 8; ctx.stroke(); ctx.fill();
+
+            this.organelles.forEach(o => o.draw(ctx));
+            ctx.fillStyle = '#f55';
+            this.cells.forEach(c => { if(c.active) { ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI*2); ctx.fill(); } });
+            this.enemies.forEach(e => e.draw(ctx));
+        }
+    }
+
+    class Player {
+        constructor() {
+            this.x = CFG.WORLD/2; this.y = CFG.WORLD/2;
+            this.angle = 0; this.radius = 12;
+            this.hp = 100; this.maxHp = 100;
+            this.xp = 0; this.nextXp = 100; this.lvl = 1; this.dna = 0;
+            this.energy = 100; this.segments = Array.from({length:15}, ()=>({x:this.x, y:this.y}));
+            this.evos = { spikes:0, weapon:0, trail:0, speed:0, armor:0 };
+            this.timers = { w:0, s:0, t:0 };
+            this.trail = [];
+        }
+        update(inp) {
+            let mx=0, my=0, active=false;
+            if(inp.keys['w']||inp.keys['arrowup']) my=-1;
+            if(inp.keys['s']||inp.keys['arrowdown']) my=1;
+            if(inp.keys['a']||inp.keys['arrowleft']) mx=-1;
+            if(inp.keys['d']||inp.keys['arrowright']) mx=1;
+            
+            if(mx||my) { active=true; this.angle = Math.atan2(my,mx); }
+            else if(inp.active) { active=true; this.angle = inp.angle; }
+
+            if(active) {
+                const spd = 5 + this.evos.speed*0.5;
+                this.x += Math.cos(this.angle)*spd; this.y += Math.sin(this.angle)*spd;
+                this.x = Math.max(0, Math.min(CFG.WORLD, this.x));
+                this.y = Math.max(0, Math.min(CFG.WORLD, this.y));
+            }
+
+            if((inp.btn || inp.keys[' ']) && this.energy >= 30) {
+                this.energy -= 30;
+                this.x += Math.cos(this.angle)*150; this.y += Math.sin(this.angle)*150;
+                AudioEngine.sfx.dash();
+            }
+            this.energy = Math.min(100, this.energy+0.5);
+
+            let lead = {x:this.x, y:this.y};
+            this.segments.forEach(s => {
+                let dx = lead.x - s.x, dy = lead.y - s.y;
+                let d = Math.hypot(dx, dy);
+                if(d > 10) {
+                    let a = Math.atan2(dy, dx);
+                    s.x += Math.cos(a)*(d-10); s.y += Math.sin(a)*(d-10);
+                }
+                lead = s;
+            });
+
+            this.handleEvos();
+        }
+        
+        handleEvos() {
+            if(this.evos.weapon > 0) {
+                this.timers.w--;
+                if(this.timers.w <= 0) {
+                    const t = window.game.getNearestEnemy(this.x, this.y, 400);
+                    if(t) {
+                        const a = Math.atan2(t.y-this.y, t.x-this.x);
+                        window.game.projectiles.push(new Projectile(this.x, this.y, a, 'player', 10+this.evos.weapon*5));
+                        this.timers.w = Math.max(15, 60 - this.evos.weapon*5);
+                        AudioEngine.sfx.shoot();
+                    }
+                }
+            }
+            if(this.evos.trail > 0) {
+                this.timers.t--;
+                if(this.timers.t <= 0) {
+                    const tail = this.segments[this.segments.length-1];
+                    this.trail.push({x:tail.x, y:tail.y, r:15+this.evos.trail*5, life:1.0});
+                    this.timers.t = 8;
+                }
+            }
+            this.trail = this.trail.filter(t => { t.life-=0.01; return t.life>0; });
+        }
+
+        draw(ctx) {
+            this.trail.forEach(t => {
+                ctx.globalAlpha = t.life*0.4; ctx.fillStyle='#0f0';
+                ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+            
+            ctx.fillStyle = '#00ff9d';
+            const pts = [{x:this.x, y:this.y}, ...this.segments];
+            pts.forEach((p, i) => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, this.radius*(1-i/pts.length*0.5), 0, Math.PI*2); ctx.fill();
+            });
+        }
+    }
+
+    window.game = {
+        player: null, hosts: [], voidEnemies: [], projectiles: [], particles: [],
+        spatial: new SpatialHash(CFG.GRID),
+        input: { active:false, angle:0, btn:false, keys:{}, ox:0, oy:0 },
+        cam: {x:0, y:0, z:1}, isRunning: false, paused: false,
+
+        init() {
+            canvas = document.getElementById('gameCanvas'); ctx = canvas.getContext('2d');
+            miniCanvas = document.getElementById('minimap'); miniCtx = miniCanvas.getContext('2d');
+            window.addEventListener('resize', this.resize.bind(this)); this.resize();
+            this.setupInput();
+            const saved = JSON.parse(localStorage.getItem('parasite_v3_save') || '{"dna":0}');
+            document.getElementById('menu-dna').innerText = saved.dna;
+        },
+        resize() { width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; miniCanvas.width=130; miniCanvas.height=130; },
+
+        setupInput() {
+            const joy = document.getElementById('joystick-visual'), nub = document.getElementById('joystick-nub');
+            const dash = document.getElementById('dash-visual');
+            
+            const start = (x, y) => {
+                AudioEngine.init();
+                if(x < width/2) {
+                    this.input.active = true; this.input.ox = x; this.input.oy = y;
+                    joy.style.display='block'; joy.style.left=x+'px'; joy.style.top=y+'px';
+                } else { this.input.btn = true; dash.classList.add('pressed'); }
+            };
+            const move = (x, y) => {
+                if(this.input.active) {
+                    const dx = x - this.input.ox, dy = y - this.input.oy;
+                    this.input.angle = Math.atan2(dy, dx);
+                    const d = Math.min(35, Math.hypot(dx, dy));
+                    nub.style.transform = `translate(calc(-50% + ${Math.cos(this.input.angle)*d}px), calc(-50% + ${Math.sin(this.input.angle)*d}px))`;
+                }
+            };
+            const end = () => { this.input.active=false; this.input.btn=false; joy.style.display='none'; dash.classList.remove('pressed'); };
+
+            window.addEventListener('touchstart', e => { 
+                if(e.target.tagName === 'BUTTON' || e.target.closest('.upgrade-card')) return; 
+                e.preventDefault(); 
+                Array.from(e.changedTouches).forEach(t=>start(t.clientX, t.clientY)); 
+            }, {passive:false});
+            window.addEventListener('touchmove', e => { 
+                e.preventDefault(); 
+                Array.from(e.changedTouches).forEach(t=>move(t.clientX, t.clientY)); 
+            }, {passive:false});
+            window.addEventListener('touchend', end);
+            
+            window.addEventListener('mousedown', e => {
+                if(e.target.tagName !== 'BUTTON' && !e.target.closest('.upgrade-card')) start(e.clientX, e.clientY);
+            });
+            window.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+            window.addEventListener('mouseup', end);
+            
+            window.addEventListener('keydown', e => { this.input.keys[e.key.toLowerCase()] = true; });
+            window.addEventListener('keyup', e => { this.input.keys[e.key.toLowerCase()] = false; });
+        },
+
+        startRun() {
+            this.player = new Player();
+            this.hosts = []; this.voidEnemies = []; this.projectiles = []; this.particles = [];
+            
+            for(let i=0; i<25; i++) {
+                const r = 400 + Math.random()*600;
+                let x, y, safe=false, attempts=0;
+                while(!safe && attempts < 50) {
+                    x = Math.random()*(CFG.WORLD-2000)+1000; y = Math.random()*(CFG.WORLD-2000)+1000;
+                    safe = true;
+                    for(let h of this.hosts) if(Math.hypot(x-h.x, y-h.y) < r + h.radius + 200) safe=false;
+                    attempts++;
+                }
+                if(safe) this.hosts.push(new Host(x, y, r));
+            }
+            
+            for(let i=0; i<40; i++) this.voidEnemies.push(new Enemy(null, null, Math.random()>0.6?'charger':'shooter'));
+
+            let px, py, safe=false, attempts=0;
+            while(!safe && attempts < 100) {
+                px = Math.random()*CFG.WORLD; py = Math.random()*CFG.WORLD;
+                safe = true;
+                for(let h of this.hosts) if(Math.hypot(px-h.x, py-h.y) < h.radius+100) safe=false;
+                attempts++;
+            }
+            this.player.x = px || 100; this.player.y = py || 100;
+            this.player.segments.forEach(s => {s.x=this.player.x; s.y=this.player.y});
+
+            document.getElementById('menu-screen').classList.remove('active');
+            document.getElementById('hud').style.display = 'block';
+            this.isRunning = true; this.loop();
+        },
+
+        getNearestEnemy(x, y, range) {
+            const targets = this.spatial.query(x, y, range);
+            let closest = null, minD = Infinity;
+            targets.forEach(t => {
+                if(t instanceof Enemy && t.active) {
+                    const d = Math.hypot(x-t.x, y-t.y);
+                    if(d < range && d < minD) { minD=d; closest=t; }
+                }
+            });
+            return closest;
+        },
+
+        triggerLevelUp() {
+            this.paused = true;
+            this.player.lvl++; this.player.xp = 0; this.player.nextXp *= 1.3;
+            this.player.hp = this.player.maxHp;
+            
+            const opts = [
+                {id:'speed', n:'MOTILITY', d:'+Move Speed', ico:'⚡'},
+                {id:'weapon', n:'NEEDLES', d:'+Auto Fire Rate', ico:'🏹'},
+                {id:'spikes', n:'SPIKES', d:'+Area Damage', ico:'💥'},
+                {id:'trail', n:'ACID', d:'+Trail Damage', ico:'🧪'},
+                {id:'armor', n:'CARAPACE', d:'-Damage Taken', ico:'🛡️'}
+            ];
+            opts.sort(() => 0.5-Math.random());
+            const choices = opts.slice(0, 3);
+            
+            const ui = document.getElementById('upgrade-options'); ui.innerHTML = '';
+            choices.forEach(opt => {
+                const el = document.createElement('div'); el.className = 'upgrade-card';
+                el.innerHTML = `<span class="upgrade-icon">${opt.ico}</span><h3>${opt.n}</h3><p>${opt.d}</p>`;
+                el.onclick = () => {
+                    this.player.evos[opt.id]++;
+                    document.getElementById('upgrade-screen').classList.remove('active');
+                    this.paused = false;
+                    this.loop();
+                };
+                ui.appendChild(el);
+            });
+            document.getElementById('upgrade-screen').classList.add('active');
+        },
+
+        loop() {
+            if(!this.isRunning || this.paused) return;
+            const p = this.player;
+            
+            this.spatial.clear();
+            this.voidEnemies.forEach(e => { if(e.active) this.spatial.insert(e); });
+            this.hosts.forEach(h => {
+                h.enemies.forEach(e => { if(e.active) this.spatial.insert(e); });
+                h.organelles.forEach(o => { if(o.active) this.spatial.insert(o); });
+                h.cells.forEach(c => { if(c.active) this.spatial.insert(c); });
+            });
+
+            p.update(this.input);
+            this.hosts.forEach(h => h.update(p));
+            this.voidEnemies.forEach(e => e.update(p));
+            
+            this.projectiles = this.projectiles.filter(pj => {
+                pj.update();
+                if(pj.type === 'player') {
+                    const hits = this.spatial.query(pj.x, pj.y, 20);
+                    for(let t of hits) {
+                        if(t instanceof Enemy && t.active && Math.hypot(pj.x-t.x, pj.y-t.y) < t.radius+10) {
+                            t.hp -= pj.dmg; pj.active = false;
+                            if(t.hp<=0) { t.active=false; p.xp += 20; p.dna += 2; AudioEngine.sfx.kill(); }
+                            break;
+                        } else if(t instanceof Organelle && t.active && Math.hypot(pj.x-t.x, pj.y-t.y) < t.radius+10) {
+                            t.hp -= pj.dmg; pj.active=false;
+                            if(t.hp<=0) { t.active=false; p.xp+=100; p.dna+=10; AudioEngine.sfx.kill(); }
+                            break;
+                        }
+                    }
+                } 
+                else if(pj.type === 'enemy' && Math.hypot(pj.x-p.x, pj.y-p.y) < p.radius+5) {
+                    p.hp -= Math.max(1, 10 - p.evos.armor); pj.active=false; AudioEngine.sfx.hit();
+                }
+                return pj.active;
+            });
+
+            const nearby = this.spatial.query(p.x, p.y, p.radius + 20);
+            nearby.forEach(e => {
+                if(e.active) {
+                    const d = Math.hypot(p.x-e.x, p.y-e.y);
+                    if(d < p.radius + (e.radius||e.r)) {
+                        if(e.val) { 
+                            e.active = false; p.xp += 5; p.hp = Math.min(p.maxHp, p.hp+2); AudioEngine.sfx.eat();
+                        } else if(e instanceof Enemy) { 
+                            p.hp -= 1; 
+                            if(p.evos.spikes > 0) e.hp -= p.evos.spikes; 
+                        } else if(e instanceof Organelle) {
+                            e.hp -= 1;
+                            if(e.hp<=0) { e.active=false; p.xp+=100; p.dna+=15; AudioEngine.sfx.kill(); }
+                        }
+                    }
+                    if(e instanceof Enemy && p.trail.length > 0) {
+                        for(let t of p.trail) if(Math.hypot(t.x-e.x, t.y-e.y) < t.r) { e.hp -= 0.5; break; }
+                    }
+                }
+            });
+
+            if(p.xp >= p.nextXp) this.triggerLevelUp();
+
+            if(p.hp <= 0) {
+                this.isRunning = false;
+                const s = JSON.parse(localStorage.getItem('parasite_v3_save') || '{"dna":0}');
+                s.dna += p.dna; localStorage.setItem('parasite_v3_save', JSON.stringify(s));
+                document.getElementById('run-dna').innerText = p.dna;
+                document.getElementById('death-screen').classList.add('active');
+                return;
+            }
+
+            ctx.fillStyle = '#010203'; ctx.fillRect(0,0,width,height);
+            this.cam.x = p.x - width/2; this.cam.y = p.y - height/2;
+            
+            ctx.save(); ctx.translate(-this.cam.x, -this.cam.y);
+            ctx.strokeStyle = 'rgba(0, 255, 157, 0.03)'; ctx.lineWidth = 2; ctx.beginPath();
+            for(let x=0; x<=CFG.WORLD; x+=400) { ctx.moveTo(x,0); ctx.lineTo(x,CFG.WORLD); }
+            for(let y=0; y<=CFG.WORLD; y+=400) { ctx.moveTo(0,y); ctx.lineTo(CFG.WORLD,y); }
+            ctx.stroke();
+
+            this.hosts.forEach(h => h.draw(ctx, this.cam));
+            this.voidEnemies.forEach(e => e.draw(ctx));
+            this.projectiles.forEach(p => p.draw(ctx));
+            p.draw(ctx);
+            ctx.restore();
+
+            this.drawMinimap();
+            document.getElementById('hp-bar').style.width = (p.hp/p.maxHp*100)+'%';
+            document.getElementById('xp-bar').style.width = (p.xp/p.nextXp*100)+'%';
+            document.getElementById('skill-bar').style.width = p.energy+'%';
+            document.getElementById('dna-hud').innerText = p.dna;
+            document.getElementById('lvl-txt').innerText = p.lvl;
+            document.getElementById('hp-val').innerText = Math.ceil(p.hp);
+
+            requestAnimationFrame(this.loop.bind(this));
+        },
+
+        drawMinimap() {
+            miniCtx.fillStyle = 'rgba(0,0,0,0.8)'; miniCtx.fillRect(0,0,130,130);
+            const scale = 130/2000; const cx = 65, cy = 65; const p = this.player;
+            
+            const drawDot = (x, y, c) => {
+                const dx = (x - p.x)*scale, dy = (y - p.y)*scale;
+                if(Math.hypot(dx, dy) < 64) { miniCtx.fillStyle = c; miniCtx.fillRect(cx+dx-1, cy+dy-1, 3, 3); }
+            };
+
+            this.hosts.forEach(h => {
+                if(Math.hypot(h.x-p.x, h.y-p.y) < 2000) {
+                    miniCtx.strokeStyle = '#522'; miniCtx.beginPath();
+                    miniCtx.arc(cx+(h.x-p.x)*scale, cy+(h.y-p.y)*scale, h.radius*scale, 0, Math.PI*2); miniCtx.stroke();
+                }
+                h.enemies.forEach(e => { if(e.active) drawDot(e.x, e.y, '#f00'); });
+            });
+            this.voidEnemies.forEach(e => { if(e.active) drawDot(e.x, e.y, '#f00'); });
+            miniCtx.fillStyle = '#0f0'; miniCtx.fillRect(cx-2, cy-2, 4, 4);
+        },
+
+        toMenu() { location.reload(); }
+    };
+
+    window.onload = () => game.init();
+})();
+</script>
+</body>
+</html>

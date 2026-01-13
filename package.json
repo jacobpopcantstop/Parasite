@@ -1,0 +1,18 @@
+{
+  "name": "parasite-game",
+  "version": "3.7.0",
+  "description": "PARASITE V3.7: HOST PROTOCOL - A web-based bio-simulation game",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "serve": "npx http-server -p 8000 -o"
+  },
+  "keywords": [
+    "game",
+    "canvas",
+    "javascript",
+    "parasite"
+  ],
+  "author": "",
+  "license": "MIT"
+}
