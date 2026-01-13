@@ -737,9 +737,9 @@
     };
 
     if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', () => game.init());
+        window.addEventListener('DOMContentLoaded', () => window.game.init());
     } else {
-        game.init();
+        window.game.init();
     }
 })();
 </script>
