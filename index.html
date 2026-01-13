@@ -736,7 +736,11 @@
         toMenu() { location.reload(); }
     };
 
-    window.onload = () => game.init();
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', () => game.init());
+    } else {
+        game.init();
+    }
 })();
 </script>
 </body>
