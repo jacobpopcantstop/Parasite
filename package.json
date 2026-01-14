@@ -1,18 +1,18 @@
 {
   "name": "parasite-game",
-  "version": "3.7.0",
-  "description": "PARASITE V3.7: HOST PROTOCOL - A web-based bio-simulation game",
-  "main": "index.html",
+  "version": "1.0.0",
+  "description": "Parasite - A Phaser 3 game",
+  "type": "module",
   "scripts": {
-    "start": "python3 -m http.server 8000",
-    "serve": "npx http-server -p 8000 -o"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
-  "keywords": [
-    "game",
-    "canvas",
-    "javascript",
-    "parasite"
-  ],
-  "author": "",
-  "license": "MIT"
+  "dependencies": {
+    "phaser": "^3.70.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
 }
