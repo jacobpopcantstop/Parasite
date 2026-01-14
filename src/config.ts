@@ -5,13 +5,13 @@ export const CONFIG = {
   WORLD_HEIGHT: 3000,
   GRID_SIZE: 100,
 
-  // Parasite
+  // Parasite (base values, can be modified by GameState)
   PARASITE_RADIUS: 20,
   PARASITE_COLOR: 0x00ff9d,
   TRAIL_LENGTH: 15,
   TRAIL_FADE_RATE: 0.06,
 
-  // Physics (tuned for smooth gliding)
+  // Physics defaults (actual values come from GameState)
   ACCELERATION: 1200,
   MAX_SPEED: 450,
   DRAG: 0.94, // Per 16.67ms frame
@@ -28,6 +28,14 @@ export const CONFIG = {
   BACKGROUND_COLOR: 0x0a0a12,
   GRID_COLOR: 0x1a1a2e,
   GRID_ALPHA: 0.4,
+
+  // Collision (spatial hash cell size)
+  SPATIAL_CELL_SIZE: 150,
+
+  // Object pools (initial sizes)
+  POOL_FOOD_SIZE: 50,
+  POOL_PARTICLE_SIZE: 100,
+  POOL_PROJECTILE_SIZE: 30,
 } as const;
 
 export type Config = typeof CONFIG;
