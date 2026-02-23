@@ -33,6 +33,12 @@ export class Parasite extends Entity {
   private targetPosition = new Phaser.Math.Vector2(0, 0);
   private isPointerActive = false;
 
+  // World bounds for boundary enforcement
+  private worldWidth: number = CONFIG.WORLD_WIDTH;
+  private worldHeight: number = CONFIG.WORLD_HEIGHT;
+  private wallThickness: number = CONFIG.WALL_THICKNESS;
+  private bounceFactor: number = CONFIG.BOUNCE_FACTOR;
+
   constructor(x: number, y: number) {
     super(x, y, GameState.parasiteStats.baseSize);
 
@@ -44,11 +50,25 @@ export class Parasite extends Entity {
   }
 
   /**
+   * Set world boundary dimensions for collision enforcement.
+   */
+  setBounds(worldWidth: number, worldHeight: number, wallThickness: number, bounceFactor: number): void {
+    this.worldWidth = worldWidth;
+    this.worldHeight = worldHeight;
+    this.wallThickness = wallThickness;
+    this.bounceFactor = bounceFactor;
+  }
+
+  /**
    * Create visual representation
    */
   render(scene: Phaser.Scene): void {
     if (this.container) return; // Already rendered
 
+    // Trail graphics must be added first so it renders behind the parasite container
+    this.trailGraphics = scene.add.graphics();
+
+    // Container for parasite parts (added after trail for correct depth ordering)
     this.container = scene.add.container(this.x, this.y);
 
     // Outer glow
@@ -68,14 +88,10 @@ export class Parasite extends Entity {
     );
 
     this.container.add([this.glow, this.body, this.highlight]);
-
-    // Trail graphics (separate, behind container)
-    this.trailGraphics = scene.add.graphics();
-    this.trailGraphics.setDepth(-1);
   }
 
   /**
-   * Set target position (from input)
+   * Set target position (from pointer input)
    */
   setTarget(x: number, y: number): void {
     this.targetPosition.set(x, y);
@@ -89,7 +105,7 @@ export class Parasite extends Entity {
   }
 
   /**
-   * Apply keyboard input
+   * Apply keyboard input as acceleration
    */
   applyKeyboardInput(dx: number, dy: number, delta: number): void {
     if (dx === 0 && dy === 0) return;
@@ -132,7 +148,7 @@ export class Parasite extends Entity {
       this.velocity.y += globalForce.y * (delta / 1000);
     }
 
-    // Apply acceleration
+    // Apply accumulated acceleration
     this.velocity.x += this.acceleration.x * (delta / 1000);
     this.velocity.y += this.acceleration.y * (delta / 1000);
     this.acceleration.set(0, 0);
@@ -158,6 +174,9 @@ export class Parasite extends Entity {
     this.x += this.velocity.x * (delta / 1000);
     this.y += this.velocity.y * (delta / 1000);
 
+    // Enforce world boundaries (fixes the glitch where parasite escapes the arena)
+    this.enforceBoundaries();
+
     // Update trail
     this.updateTrail();
 
@@ -166,12 +185,58 @@ export class Parasite extends Entity {
   }
 
   /**
+   * Enforce world boundaries with bounce and emit WALL_HIT event.
+   */
+  private enforceBoundaries(): void {
+    const margin = this.radius + this.wallThickness / 2;
+    let hitWall = false;
+    let hitSpeed = 0;
+
+    // Left wall
+    if (this.x < margin) {
+      this.x = margin;
+      const speed = Math.abs(this.velocity.x);
+      this.velocity.x = speed * this.bounceFactor;
+      hitWall = true;
+      hitSpeed = Math.max(hitSpeed, speed);
+    }
+    // Right wall
+    if (this.x > this.worldWidth - margin) {
+      this.x = this.worldWidth - margin;
+      const speed = Math.abs(this.velocity.x);
+      this.velocity.x = -speed * this.bounceFactor;
+      hitWall = true;
+      hitSpeed = Math.max(hitSpeed, speed);
+    }
+    // Top wall
+    if (this.y < margin) {
+      this.y = margin;
+      const speed = Math.abs(this.velocity.y);
+      this.velocity.y = speed * this.bounceFactor;
+      hitWall = true;
+      hitSpeed = Math.max(hitSpeed, speed);
+    }
+    // Bottom wall
+    if (this.y > this.worldHeight - margin) {
+      this.y = this.worldHeight - margin;
+      const speed = Math.abs(this.velocity.y);
+      this.velocity.y = -speed * this.bounceFactor;
+      hitWall = true;
+      hitSpeed = Math.max(hitSpeed, speed);
+    }
+
+    if (hitWall) {
+      Events.emit(GameEventType.WALL_HIT, { x: this.x, y: this.y, velocity: hitSpeed });
+    }
+  }
+
+  /**
    * Update visual representation
    */
   updateVisuals(time: number, _delta: number): void {
     if (!this.container) return;
 
-    // Sync position
+    // Sync container position with entity position
     this.syncContainerPosition();
 
     // Update size based on GameState
@@ -186,7 +251,7 @@ export class Parasite extends Entity {
     const speedPulse = 1 + speedRatio * 0.15;
     this.container.setScale(currentSize * pulse * speedPulse);
 
-    // Rotation toward movement
+    // Rotation toward movement direction
     if (this.speed > 10) {
       const targetAngle = Math.atan2(this.velocity.y, this.velocity.x);
       this.container.rotation = Phaser.Math.Angle.RotateTo(
@@ -196,7 +261,7 @@ export class Parasite extends Entity {
       );
     }
 
-    // Glow intensity
+    // Glow intensity based on speed
     this.glow.setAlpha(0.1 + speedRatio * 0.25);
     this.glow.setScale(1 + speedRatio * 0.3);
 
